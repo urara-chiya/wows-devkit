@@ -1,0 +1,68 @@
+{
+  "name": "wows-replay-parser",
+  "version": "1.0.0",
+  "description": "Lightweight World of Warships replay parser for metadata and battle results.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": [
+    "world-of-warships",
+    "wows",
+    "replay",
+    "wowsreplay",
+    "parser"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./node": {
+      "types": "./dist/node.d.mts",
+      "import": "./dist/node.mjs"
+    },
+    "./package.json": "./package.json",
+    "./extract": {
+      "types": "./dist/extract.d.mts",
+      "import": "./dist/extract.mjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build",
+    "extract:constants": "node dist/extract-cli.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsdown": "^0.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  },
+  "bin": {
+    "wows-scripts-constants": "./dist/extract-cli.mjs"
+  },
+  "dependencies": {
+    "egoroof-blowfish": "^4.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urara-chiya/wows-devkit.git",
+    "directory": "wows-replay-parser"
+  },
+  "homepage": "https://github.com/urara-chiya/wows-devkit#readme",
+  "bugs": {
+    "url": "https://github.com/urara-chiya/wows-devkit/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

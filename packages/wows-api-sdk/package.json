@@ -1,0 +1,68 @@
+{
+  "name": "wows-api-sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for the official World of Warships API, Vortex, and the clan service.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": [
+    "world-of-warships",
+    "wargaming",
+    "wows",
+    "vortex",
+    "clans",
+    "api",
+    "sdk"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./official": {
+      "types": "./dist/official.d.mts",
+      "import": "./dist/official.mjs"
+    },
+    "./vortex": {
+      "types": "./dist/vortex.d.mts",
+      "import": "./dist/vortex.mjs"
+    },
+    "./clans": {
+      "types": "./dist/clans.d.mts",
+      "import": "./dist/clans.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "generate:types": "node scripts/generate-types.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsdown": "^0.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urara-chiya/wows-devkit.git",
+    "directory": "wows-api-sdk"
+  },
+  "homepage": "https://github.com/urara-chiya/wows-devkit#readme",
+  "bugs": {
+    "url": "https://github.com/urara-chiya/wows-devkit/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

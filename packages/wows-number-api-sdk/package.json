@@ -1,0 +1,57 @@
+{
+  "name": "wows-number-api-sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for wows-numbers expected values and Personal Rating.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": [
+    "world-of-warships",
+    "wows",
+    "wows-numbers",
+    "personal-rating",
+    "sdk"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./node": {
+      "types": "./dist/node.d.mts",
+      "import": "./dist/node.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsdown": "^0.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urara-chiya/wows-devkit.git",
+    "directory": "wows-number-api-sdk"
+  },
+  "homepage": "https://github.com/urara-chiya/wows-devkit#readme",
+  "bugs": {
+    "url": "https://github.com/urara-chiya/wows-devkit/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
