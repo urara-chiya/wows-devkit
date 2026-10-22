@@ -56,7 +56,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/urara-chiya/wows-devkit.git",
-    "directory": "wows-api-sdk"
+    "directory": "packages/wows-api-sdk"
   },
   "homepage": "https://github.com/urara-chiya/wows-devkit#readme",
   "bugs": {

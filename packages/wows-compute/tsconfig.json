@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "wows-number-api-sdk": ["../wows-number-api-sdk/src/index.ts"],
+      "wows-replay-parser": ["../wows-replay-parser/src/index.ts"]
+    }
+  },
+  "include": ["src", "tests"]
+}

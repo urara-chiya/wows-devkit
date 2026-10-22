@@ -56,7 +56,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/urara-chiya/wows-devkit.git",
-    "directory": "wows-replay-parser"
+    "directory": "packages/wows-replay-parser"
   },
   "homepage": "https://github.com/urara-chiya/wows-devkit#readme",
   "bugs": {

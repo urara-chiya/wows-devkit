@@ -45,7 +45,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/urara-chiya/wows-devkit.git",
-    "directory": "wows-number-api-sdk"
+    "directory": "packages/wows-number-api-sdk"
   },
   "homepage": "https://github.com/urara-chiya/wows-devkit#readme",
   "bugs": {

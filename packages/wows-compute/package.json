@@ -1,0 +1,69 @@
+{
+  "name": "wows-compute",
+  "version": "1.0.0",
+  "description": "Pure TypeScript computation kernels for World of Warships match records, ratings and aggregates.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "keywords": [
+    "world-of-warships",
+    "wows",
+    "personal-rating",
+    "statistics",
+    "compute"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./match": {
+      "types": "./dist/match.d.mts",
+      "import": "./dist/match.mjs"
+    },
+    "./metrics": {
+      "types": "./dist/metrics.d.mts",
+      "import": "./dist/metrics.mjs"
+    },
+    "./strength": {
+      "types": "./dist/strength.d.mts",
+      "import": "./dist/strength.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "wows-number-api-sdk": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsdown": "^0.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "wows-replay-parser": "workspace:^"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urara-chiya/wows-devkit.git",
+    "directory": "packages/wows-compute"
+  },
+  "homepage": "https://github.com/urara-chiya/wows-devkit#readme",
+  "bugs": {
+    "url": "https://github.com/urara-chiya/wows-devkit/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

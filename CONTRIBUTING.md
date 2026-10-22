@@ -34,6 +34,7 @@
 | `wows-api-sdk` | 官方 API、Vortex、Clans SDK |
 | `wows-number-api-sdk` | wows-numbers 期望值与 PR |
 | `wows-replay-parser` | Replay 与 scripts.zip 常量提取 |
+| `wows-compute` | 对局记录、评级与统计计算 |
 | `repo` | 仓库级配置、文档、脚本 |
 | `release` | 发布流程 |
 | `deps` | 依赖更新 |
@@ -65,7 +66,7 @@ BREAKING CHANGE: Node 20 is no longer supported.
 
 ## 版本与发布
 
-三个包独立版本，使用 [Changesets](https://github.com/changesets/changesets) 管理。
+四个包独立版本，使用 [Changesets](https://github.com/changesets/changesets) 管理。
 
 ### 添加变更
 

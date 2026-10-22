@@ -185,6 +185,28 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/wows-compute:
+    dependencies:
+      wows-number-api-sdk:
+        specifier: workspace:^
+        version: link:../wows-number-api-sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+      tsdown:
+        specifier: ^0.23.1
+        version: 0.23.1(typescript@7.0.2)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0)(yaml@2.9.1))
+      wows-replay-parser:
+        specifier: workspace:^
+        version: link:../wows-replay-parser
+
   packages/wows-number-api-sdk:
     devDependencies:
       '@types/node':
