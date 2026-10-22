@@ -22,3 +22,5 @@ pnpm changeset
 
 - 新包首次发布可能进入 npm 的 staged release 审核，审核通过后才会替换 `0.0.0-stage` 占位版本。
 - 刚下架的包有 24 小时重发限制。等待后可以手动 `npm publish`，再执行 `pnpm git-tag` 创建对应 tag。
+
+当前未准备发布的包会暂时加入 `config.json` 的 `ignore` 列表；准备好后移除即可。
