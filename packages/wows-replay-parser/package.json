@@ -1,6 +1,6 @@
 {
   "name": "wows-replay-parser",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lightweight World of Warships replay parser for metadata and battle results.",
   "type": "module",
   "license": "MIT",

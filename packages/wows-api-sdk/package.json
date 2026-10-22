@@ -1,6 +1,6 @@
 {
   "name": "wows-api-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TypeScript SDK for the official World of Warships API, Vortex, and the clan service.",
   "type": "module",
   "license": "MIT",
