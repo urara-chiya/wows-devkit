@@ -16,8 +16,8 @@ permissions:
 
 jobs:
   release:
-    # Set the repository variable RELEASE_ENABLED=true after the initial 1.0.0 publish.
-    if: github.event_name == 'workflow_dispatch' || vars.RELEASE_ENABLED == 'true'
+    # Keep releases manual until all packages are ready.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
