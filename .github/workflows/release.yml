@@ -41,13 +41,13 @@ jobs:
       - run: pnpm pack:check
 
       - id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          version: pnpm version-packages
-          publish: pnpm changeset publish
-          commit: "chore(release): version packages"
-          title: "chore(release): version packages"
-          createGithubReleases: true
+          version-script: pnpm version-packages
+          publish-script: pnpm changeset publish
+          commit-message: "chore(release): version packages"
+          pr-title: "chore(release): version packages"
+          create-github-releases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
