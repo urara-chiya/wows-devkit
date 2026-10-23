@@ -6,6 +6,8 @@ import {
   pairByRole,
   quadrantOf,
   referenceLines,
+  summarizePlayers,
+  summarizeRoster,
 } from '../src/strength/index.js'
 import type { PlayerPoint, ShipCatalogLike, ShipRole } from '../src/strength/index.js'
 import { fromArenaInfo } from '../src/match/index.js'
@@ -83,6 +85,35 @@ describe('buildPlayerPoints', () => {
     const points = buildPlayerPoints(roster, ratings)
 
     expect(points[0]).toMatchObject({ shipRole: 'unknown', tier: null })
+  })
+
+  it('carries relation and extended snapshot fields', () => {
+    const points = buildPlayerPoints(
+      roster,
+      new Map([[1, {
+        pr: rated(1500),
+        winRate: 54.3,
+        battles: 900,
+        avgDamage: 50000,
+        avgFrags: 1.2,
+        hidden: true,
+      }]]),
+      catalog,
+    )
+
+    expect(points[0]).toMatchObject({
+      relation: 'self',
+      avgDamage: 50000,
+      avgFrags: 1.2,
+      hidden: true,
+    })
+    expect(points[1]).toMatchObject({
+      relation: 'ally',
+      avgDamage: null,
+      avgFrags: null,
+      hidden: false,
+    })
+    expect(points[3]).toMatchObject({ relation: 'enemy' })
   })
 })
 
@@ -179,6 +210,191 @@ describe('pairByRole', () => {
       expect(matchup.coverage.resolved + matchup.coverage.hidden
         + matchup.coverage.bot + matchup.coverage.failed)
         .toBe(matchup.coverage.total)
+    }
+  })
+})
+
+function point(overrides: Partial<PlayerPoint> = {}): PlayerPoint {
+  return {
+    accountId: 1,
+    name: null,
+    teamId: null,
+    shipId: null,
+    shipRole: 'unknown',
+    tier: null,
+    divisionId: null,
+    winRate: null,
+    pr: null,
+    prExact: false,
+    battles: null,
+    isBot: false,
+    relation: 'ally',
+    avgDamage: null,
+    avgFrags: null,
+    hidden: false,
+    ...overrides,
+  }
+}
+
+describe('summarizePlayers', () => {
+  it('averages equal-weight stats across twelve points', () => {
+    const points = Array.from({ length: 12 }, (_, index) => point({
+      accountId: index + 1,
+      winRate: 50 + index,
+      avgDamage: 40000 + index * 1000,
+      avgFrags: 0.5 + index / 10,
+      pr: 1000 + index * 100,
+      battles: 100 + index,
+    }))
+
+    const summary = summarizePlayers(points)
+
+    expect(summary.total).toBe(12)
+    expect(summary.players).toBe(12)
+    expect(summary.battles).toBe(1266)
+    expect(summary.winRate).toBe(55.5)
+    expect(summary.avgDamage).toBe(45500)
+    expect(summary.avgFrags).toBeCloseTo(1.05)
+    expect(summary.pr).toBe(1550)
+    expect(summary.coverage).toEqual({ total: 12, resolved: 12, hidden: 0, bot: 0, failed: 0 })
+    expect(summary.prExact).toBe(false)
+  })
+
+  it('averages only non-null values per metric', () => {
+    const points = [
+      point({ winRate: 50, avgDamage: 10000, pr: 1000, battles: 100 }),
+      point({ winRate: null, avgDamage: null, avgFrags: 0.8, pr: null, battles: null }),
+      point({ winRate: 60, avgDamage: 20000, avgFrags: 1.4, pr: 2000, battles: 300 }),
+    ]
+
+    const summary = summarizePlayers(points)
+
+    expect(summary.winRate).toBe(55)
+    expect(summary.avgDamage).toBe(15000)
+    expect(summary.avgFrags).toBeCloseTo(1.1)
+    expect(summary.pr).toBe(1500)
+    expect(summary.battles).toBe(400)
+  })
+
+  it('treats zero as a valid value', () => {
+    const summary = summarizePlayers([
+      point({ winRate: 0, avgDamage: 0, avgFrags: 0, pr: 0, battles: 10 }),
+    ])
+
+    expect(summary.winRate).toBe(0)
+    expect(summary.avgDamage).toBe(0)
+    expect(summary.avgFrags).toBe(0)
+    expect(summary.pr).toBe(0)
+  })
+
+  it('excludes bots from players, battles and averages but counts them in coverage', () => {
+    const summary = summarizePlayers([
+      point({ winRate: 50, avgDamage: 10000, battles: 100 }),
+      point({ isBot: true, winRate: 100, avgDamage: 99999, battles: 999 }),
+    ])
+
+    expect(summary.total).toBe(2)
+    expect(summary.players).toBe(1)
+    expect(summary.battles).toBe(100)
+    expect(summary.winRate).toBe(50)
+    expect(summary.coverage).toEqual({ total: 2, resolved: 1, hidden: 0, bot: 1, failed: 0 })
+  })
+
+  it('classifies hidden and failed slots', () => {
+    const summary = summarizePlayers([
+      point({ accountId: null, winRate: 50 }),
+      point({ accountId: 2, hidden: true, winRate: 40 }),
+      point({ accountId: 3 }),
+    ])
+
+    expect(summary.coverage).toEqual({ total: 3, resolved: 0, hidden: 2, bot: 0, failed: 1 })
+    expect(summary.players).toBe(3)
+    expect(summary.winRate).toBe(45)
+  })
+
+  it('returns an empty summary for no points', () => {
+    expect(summarizePlayers([])).toEqual({
+      total: 0,
+      players: 0,
+      battles: 0,
+      coverage: { total: 0, resolved: 0, hidden: 0, bot: 0, failed: 0 },
+      winRate: null,
+      avgDamage: null,
+      avgFrags: null,
+      pr: null,
+      prExact: false,
+    })
+  })
+
+  it('weights by battles and skips zero-weight points', () => {
+    const points = [
+      point({ winRate: 60, battles: 300 }),
+      point({ winRate: 40, battles: 100 }),
+      point({ winRate: 100, battles: 0 }),
+      point({ winRate: 100, battles: null }),
+    ]
+
+    expect(summarizePlayers(points).winRate).toBe(75)
+    expect(summarizePlayers(points, { weighting: 'battles' }).winRate).toBe(55)
+  })
+
+  it('keeps pr null when no player has a rating', () => {
+    const summary = summarizePlayers([point({ winRate: 55, battles: 10 })])
+
+    expect(summary.pr).toBeNull()
+    expect(summary.winRate).toBe(55)
+  })
+
+  it('does not mutate its input', () => {
+    const points = [point({ winRate: 50, battles: 10 }), point({ winRate: 60, battles: 20 })]
+    const snapshot = structuredClone(points)
+
+    summarizePlayers(points)
+
+    expect(points).toEqual(snapshot)
+  })
+})
+
+describe('summarizeRoster', () => {
+  it('groups sides by relation and reports unassigned slots', () => {
+    const points = [
+      point({ relation: 'self', winRate: 50 }),
+      point({ relation: 'ally', winRate: 60 }),
+      point({ relation: 'enemy', winRate: 40 }),
+      point({ relation: 'enemy', winRate: 50 }),
+      point({ relation: 'unknown', winRate: 99 }),
+    ]
+
+    const summary = summarizeRoster(points)
+
+    expect(summary.ally.players).toBe(2)
+    expect(summary.ally.winRate).toBe(55)
+    expect(summary.enemy.players).toBe(2)
+    expect(summary.enemy.winRate).toBe(45)
+    expect(summary.unassigned).toBe(1)
+  })
+
+  it('returns empty sides for an empty roster', () => {
+    const summary = summarizeRoster([])
+
+    expect(summary.ally.total).toBe(0)
+    expect(summary.enemy.total).toBe(0)
+    expect(summary.unassigned).toBe(0)
+  })
+
+  it('keeps the coverage invariant on both sides', () => {
+    const points = [
+      point({ relation: 'ally', winRate: 50 }),
+      point({ relation: 'ally', accountId: null }),
+      point({ relation: 'ally', isBot: true }),
+      point({ relation: 'enemy' }),
+    ]
+    const summary = summarizeRoster(points)
+
+    for (const side of [summary.ally, summary.enemy]) {
+      expect(side.coverage.resolved + side.coverage.hidden
+        + side.coverage.bot + side.coverage.failed)
+        .toBe(side.coverage.total)
     }
   })
 })

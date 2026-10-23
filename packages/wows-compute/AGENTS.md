@@ -8,10 +8,10 @@
 
 | 入口 | 源文件 | 内容 |
 | --- | --- | --- |
-| `wows-compute` | `src/index.ts` | rating、levels、recent、aggregate、time |
+| `wows-compute` | `src/index.ts` | rating、levels、recent、aggregate、overview、time |
 | `wows-compute/match` | `src/match.ts` | 数据模型、fromReplay、合并、关联、组队 |
 | `wows-compute/metrics` | `src/metrics.ts` | METRICS、deriveMetrics |
-| `wows-compute/strength` | `src/strength.ts` | PlayerPoint、参考线、角色配对 |
+| `wows-compute/strength` | `src/strength.ts` | PlayerPoint、概览归纳、参考线、角色配对 |
 
 新增入口时同步 `package.json` 的 `exports` 与 `tsdown.config.ts` 的 `entry`。
 
@@ -24,7 +24,7 @@
 - `src/recent/`：已入库对局的窗口统计。
 - `src/aggregate/`：加权聚合、覆盖率、按日序列。
 - `src/metrics/`：指标字典与派生。
-- `src/strength/`：散点原料与角色配对。
+- `src/strength/`：散点原料、概览归纳（`PlayerPoint` 聚合）与角色配对。
 
 ## 依赖与边界
 
@@ -46,6 +46,7 @@
 - 分母为 0 返回 `null`，不返回 0。
 - 胜率一律是百分数（`wins / battles * 100`），与 `WIN_RATE_BANDS` 一致；平局计入 `battles`。
 - `coverage.resolved + hidden + bot + failed = total` 是硬不变量，所有聚合输出都要满足。
+- `aggregate` 的 coverage 单位是人次，overview（`summarizePlayers`）的 coverage 单位是席位；不要混用两者的分母语义。
 - 近期只统计已入库且 `result !== null` 的对局；`drawPolicy: 'exclude'` 会同时从 `matches` 和样本中移除平局。
 - 指标字典的每个 `source` 字段必须存在于 `LATEST_MAPPING.publicResultIndices`；测试 `tests/metrics.test.ts` 守住这一点。
 - 角色契约：`cruiser` 是兜底，`cruiser-functional` / `cruiser-firepower` 是子角色；无法判定时用 `cruiser` 或 `unknown`，不内置角色数据表。
@@ -59,7 +60,7 @@
 - `tests/recent.test.ts`：窗口、平局策略、日期边界、同场他人。
 - `tests/aggregate.test.ts`：权重差异、PR mean/pooled、覆盖率守恒、按日序列。
 - `tests/metrics.test.ts`：字段存在性、sum/ratio、缺失值语义。
-- `tests/strength.test.ts`：散点、参考线、象限、角色配对与覆盖率。
+- `tests/strength.test.ts`：散点、参考线、象限、角色配对、概览归纳与覆盖率。
 - `tests/compat.test.ts`：`ParsedReplay` 结构兼容。
 - 不访问网络；真实回放验证放在 `private/research/replay-spike`，不进入包。
 

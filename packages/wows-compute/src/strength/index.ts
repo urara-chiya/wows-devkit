@@ -1,6 +1,6 @@
 import type { RatedValue } from '../rating/index.js'
-import type { ArenaRoster } from '../match/index.js'
-import type { Coverage } from '../aggregate/index.js'
+import type { ArenaRoster, Relation } from '../match/index.js'
+import type { Coverage, Weighting } from '../aggregate/index.js'
 
 export type ShipRole =
   | 'submarine'
@@ -34,6 +34,12 @@ export interface PlayerRatingSnapshot {
   /** Lifetime win rate in percent, e.g. `54.3`. */
   winRate?: number | null
   battles?: number | null
+  /** Lifetime average damage; `null` when unavailable. */
+  avgDamage?: number | null
+  /** Lifetime average frags; `null` when unavailable. */
+  avgFrags?: number | null
+  /** Platform-flagged hidden profile, distinct from "no data". */
+  hidden?: boolean
 }
 
 export type PlayerRatingValue = RatedValue | PlayerRatingSnapshot
@@ -54,6 +60,11 @@ export interface PlayerPoint {
   prExact: boolean
   battles: number | null
   isBot: boolean
+  /** Roster relation; used to group points into sides. */
+  relation: Relation
+  avgDamage: number | null
+  avgFrags: number | null
+  hidden: boolean
 }
 
 export interface ReferenceLines {
@@ -87,19 +98,43 @@ function isRatedValue(value: PlayerRatingValue): value is RatedValue {
   return 'value' in value && 'basis' in value && 'exact' in value
 }
 
-function normalize(value: PlayerRatingValue | undefined): {
+interface NormalizedRating {
   pr: RatedValue | null
   winRate: number | null
   battles: number | null
-} {
-  if (value === undefined) return { pr: null, winRate: null, battles: null }
+  avgDamage: number | null
+  avgFrags: number | null
+  hidden: boolean
+}
+
+function normalize(value: PlayerRatingValue | undefined): NormalizedRating {
+  if (value === undefined) {
+    return {
+      pr: null,
+      winRate: null,
+      battles: null,
+      avgDamage: null,
+      avgFrags: null,
+      hidden: false,
+    }
+  }
   if (isRatedValue(value)) {
-    return { pr: value, winRate: null, battles: value.sample.matches }
+    return {
+      pr: value,
+      winRate: null,
+      battles: value.sample.matches,
+      avgDamage: null,
+      avgFrags: null,
+      hidden: false,
+    }
   }
   return {
     pr: value.pr ?? null,
     winRate: value.winRate ?? null,
     battles: value.battles ?? value.pr?.sample.matches ?? null,
+    avgDamage: value.avgDamage ?? null,
+    avgFrags: value.avgFrags ?? null,
+    hidden: value.hidden ?? false,
   }
 }
 
@@ -129,6 +164,10 @@ export function buildPlayerPoints(
       prExact: rating.pr?.exact ?? false,
       battles: rating.battles,
       isBot: participant.isBot,
+      relation: participant.relation,
+      avgDamage: rating.avgDamage,
+      avgFrags: rating.avgFrags,
+      hidden: rating.hidden,
     }
   })
 }
@@ -260,6 +299,146 @@ export function pairByRole(
       coverage: roleCoverage(allies, enemies),
     }
   })
+}
+
+export interface SummaryOptions {
+  /**
+   * `equal` (default): one player, one vote.
+   * `battles`: weight by the player's lifetime battles.
+   */
+  weighting?: Weighting
+}
+
+export interface PlayerSummary {
+  /** All slots on the side, including bots. */
+  total: number
+  /** Non-bot slots. */
+  players: number
+  /** Sum of non-null lifetime battles for non-bot players. */
+  battles: number
+  /** Counts slots, not participant-match samples. */
+  coverage: Coverage
+  /** Percentage, e.g. `54.3`. */
+  winRate: number | null
+  avgDamage: number | null
+  avgFrags: number | null
+  pr: number | null
+  /**
+   * Always false: a mean of account PR values is not an official team PR.
+   * UI must mark it `PR*`.
+   */
+  prExact: false
+}
+
+export interface RosterSummary {
+  ally: PlayerSummary
+  enemy: PlayerSummary
+  /** Slots that cannot be assigned to a side (`relation === 'unknown'`). */
+  unassigned: number
+}
+
+type SummaryMetric = 'winRate' | 'avgDamage' | 'avgFrags' | 'pr'
+
+function summaryCoverage(points: readonly PlayerPoint[]): Coverage {
+  const coverage: Coverage = { total: 0, resolved: 0, hidden: 0, bot: 0, failed: 0 }
+
+  for (const point of points) {
+    coverage.total += 1
+    if (point.isBot) {
+      coverage.bot += 1
+      continue
+    }
+    if (point.hidden || point.accountId === null) {
+      coverage.hidden += 1
+      continue
+    }
+    if (
+      point.winRate === null
+      && point.avgDamage === null
+      && point.avgFrags === null
+      && point.pr === null
+    ) {
+      coverage.failed += 1
+      continue
+    }
+    coverage.resolved += 1
+  }
+
+  return coverage
+}
+
+function meanOf(
+  points: readonly PlayerPoint[],
+  metric: SummaryMetric,
+  weighting: Weighting,
+): number | null {
+  let total = 0
+  let weightSum = 0
+
+  for (const point of points) {
+    const value = point[metric]
+    if (value === null) continue
+    const weight = weighting === 'battles' ? point.battles ?? 0 : 1
+    if (weight <= 0) continue
+    total += value * weight
+    weightSum += weight
+  }
+
+  return weightSum === 0 ? null : total / weightSum
+}
+
+/**
+ * Reduces normalized player points into one side's overview.
+ *
+ * Averages only over non-null values; `0` is a valid value. Empty input
+ * returns an all-zero summary rather than throwing.
+ */
+export function summarizePlayers(
+  points: readonly PlayerPoint[],
+  options: SummaryOptions = {},
+): PlayerSummary {
+  const weighting = options.weighting ?? 'equal'
+  const coverage = summaryCoverage(points)
+  const members = points.filter((point) => !point.isBot)
+
+  let battles = 0
+  for (const point of members) {
+    if (point.battles !== null) battles += point.battles
+  }
+
+  return {
+    total: coverage.total,
+    players: coverage.total - coverage.bot,
+    battles,
+    coverage,
+    winRate: meanOf(members, 'winRate', weighting),
+    avgDamage: meanOf(members, 'avgDamage', weighting),
+    avgFrags: meanOf(members, 'avgFrags', weighting),
+    pr: meanOf(members, 'pr', weighting),
+    prExact: false,
+  }
+}
+
+/** Groups points by `relation` and summarizes both sides. */
+export function summarizeRoster(
+  points: readonly PlayerPoint[],
+  options: SummaryOptions = {},
+): RosterSummary {
+  const ally: PlayerPoint[] = []
+  const enemy: PlayerPoint[] = []
+  let unassigned = 0
+
+  for (const point of points) {
+    if (point.relation === 'self' || point.relation === 'ally') ally.push(point)
+    else if (point.relation === 'enemy') enemy.push(point)
+    else unassigned += 1
+  }
+
+  return {
+    ally: summarizePlayers(ally, options),
+    enemy: summarizePlayers(enemy, options),
+    unassigned,
+  }
 }
 
 export { groupDivisions } from '../match/index.js'

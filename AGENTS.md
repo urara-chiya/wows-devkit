@@ -92,7 +92,7 @@ TypeScript 配置继承 `tsconfig.base.json`，每个包的 `include` 为 `["src
 - 使用 Vitest，测试文件位于 `packages/*/tests/*.test.ts`，按被测模块命名（如 `rating.test.ts`、`vortex.test.ts`）。
 - 测试不得访问真实网络：通过 `fetch` 选项注入 `vi.fn()`，自行构造 `Response`。
 - 覆盖 URL 与参数拼接、错误映射、边界值和空值语义，而不只是正常路径。
-- 当前基线：`wows-api-sdk` 60 个测试，`wows-number-api-sdk` 30 个测试，`wows-replay-parser` 34 个测试，`wows-compute` 72 个测试，共 196 个。
+- 当前基线：`wows-api-sdk` 60 个测试，`wows-number-api-sdk` 30 个测试，`wows-replay-parser` 34 个测试，`wows-compute` 85 个测试，共 209 个。
 
 ## 代码风格
 

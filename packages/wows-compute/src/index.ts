@@ -4,6 +4,13 @@ export * from './rating/index.js'
 export * from './recent/index.js'
 export * from './time/index.js'
 
+export { summarizePlayers, summarizeRoster } from './strength/index.js'
+export type {
+  PlayerSummary,
+  RosterSummary,
+  SummaryOptions,
+} from './strength/index.js'
+
 export {
   PR_BANDS,
   PR_CATEGORY_LABELS,
