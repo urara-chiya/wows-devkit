@@ -1,6 +1,6 @@
 {
   "name": "wows-number-api-sdk",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "TypeScript SDK for wows-numbers expected values and Personal Rating.",
   "type": "module",
   "license": "MIT",
