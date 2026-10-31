@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   calculateBattlePR,
   calculatePR,
+  normalizePrRatio,
   prCategory,
   PR_BANDS,
   winRateCategory,
@@ -87,6 +88,44 @@ describe('calculatePR', () => {
     )
 
     expect(result!.pr).toBeCloseTo(1150, 10)
+  })
+})
+
+describe('PR components', () => {
+  it('returns actual, expected, ratio and normalized components', () => {
+    const result = calculatePR(
+      [{ shipId: 1, battles: 10, damage: 1_000_000, frags: 10, wins: 5 }],
+      expected(),
+    )
+
+    expect(result!.components.battles).toBe(10)
+    expect(result!.components.actual).toEqual({ damage: 1_000_000, frags: 10, wins: 5 })
+    expect(result!.components.expected).toEqual({ damage: 1_000_000, frags: 10, wins: 5 })
+    expect(result!.components.ratio.damage).toBeCloseTo(1, 10)
+    expect(result!.components.ratio.frags).toBeCloseTo(1, 10)
+    expect(result!.components.ratio.wins).toBeCloseTo(1, 10)
+    expect(result!.components.normalized.damage).toBeCloseTo(1, 10)
+    expect(result!.components.normalized.frags).toBeCloseTo(1, 10)
+    expect(result!.components.normalized.wins).toBeCloseTo(1, 10)
+  })
+
+  it('normalizes each component from its own threshold', () => {
+    expect(normalizePrRatio('damage', 0.4)).toBe(0)
+    expect(normalizePrRatio('damage', 1)).toBeCloseTo(1, 10)
+    expect(normalizePrRatio('frags', 0.1)).toBe(0)
+    expect(normalizePrRatio('frags', 1)).toBeCloseTo(1, 10)
+    expect(normalizePrRatio('wins', 0.7)).toBe(0)
+    expect(normalizePrRatio('wins', 1)).toBeCloseTo(1, 10)
+  })
+
+  it('attaches components to single-battle results', () => {
+    const result = calculateBattlePR(
+      { shipId: 1, damage: 100_000, frags: 1, win: true },
+      expected({ average_damage_dealt: 100_000, average_frags: 1, win_rate: 100 }),
+    )
+
+    expect(result!.components.battles).toBe(1)
+    expect(result!.components.actual.wins).toBe(1)
   })
 })
 

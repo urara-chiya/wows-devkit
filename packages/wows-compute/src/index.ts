@@ -12,8 +12,10 @@ export type {
 } from './strength/index.js'
 
 export {
+  normalizePrRatio,
   PR_BANDS,
   PR_CATEGORY_LABELS,
+  PR_NORMALIZATION,
   WIN_RATE_BANDS,
   prCategory,
   winRateCategory,
@@ -21,6 +23,7 @@ export {
 export type {
   ExpectedValuesDocument,
   PersonalRatingCategory,
+  PrComponents,
   ShipBattleStats,
   ShipExpectedValues,
   SingleBattleInput,

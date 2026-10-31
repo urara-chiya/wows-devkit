@@ -28,9 +28,35 @@ export const PR_CATEGORIES = [
 
 export type PersonalRatingCategory = (typeof PR_CATEGORIES)[number]
 
+/** Components used by the Personal Rating formula. */
+export interface PrComponents {
+  battles: number
+  actual: {
+    damage: number
+    frags: number
+    wins: number
+  }
+  expected: {
+    damage: number
+    frags: number
+    wins: number
+  }
+  ratio: {
+    damage: number
+    frags: number
+    wins: number
+  }
+  normalized: {
+    damage: number
+    frags: number
+    wins: number
+  }
+}
+
 export interface PersonalRatingResult {
   pr: number
   category: PersonalRatingCategory
+  components: PrComponents
 }
 
 /** Aggregated stats for one ship over any number of battles. */

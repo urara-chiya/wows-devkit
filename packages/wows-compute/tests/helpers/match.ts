@@ -14,6 +14,7 @@ export interface ParticipantSpec {
   shipId?: number | null
   damage?: number | null
   frags?: number | null
+  rawExp?: number | null
   relation?: Relation
   divisionId?: number | null
   isBot?: boolean
@@ -47,7 +48,7 @@ export function makeParticipant(spec: ParticipantSpec): MatchParticipant {
         damage: spec.damage ?? 0,
         frags: spec.frags ?? 0,
         exp: 0,
-        rawExp: 0,
+        rawExp: spec.rawExp ?? 0,
         isAlive: true,
         lifeTimeSec: 600,
         scoutingDamage: 0,

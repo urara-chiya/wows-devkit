@@ -1,6 +1,9 @@
 import type { ExpectedValuesDocument, ShipBattleStats } from 'wows-number-api-sdk'
 import { accountPrPooled } from '../rating/index.js'
-import type { SampleDescriptor } from '../rating/index.js'
+import type { RatedValue, SampleDescriptor } from '../rating/index.js'
+import { baselineFromComponents } from '../levels/baseline.js'
+import { evaluateCoreStats } from '../levels/stats.js'
+import type { CoreStatsLevels, LevelBaseline } from '../levels/types.js'
 import { outcomeOf, statOutcome } from '../match/index.js'
 import type { MatchGroup, MatchRecord } from '../match/index.js'
 import { gameDay } from '../time/index.js'
@@ -40,10 +43,13 @@ export interface PlayerAggregate {
   draws: number
   damage: number
   frags: number
+  expTotal: number
   winRate: AggregatedValue
   avgDamage: AggregatedValue
   avgFrags: AggregatedValue
+  avgExp: AggregatedValue
   pr: AggregatedValue
+  levels: CoreStatsLevels
 }
 
 export interface TeamAggregate {
@@ -54,8 +60,10 @@ export interface TeamAggregate {
     winRate: AggregatedValue
     avgDamage: AggregatedValue
     avgFrags: AggregatedValue
+    avgExp: AggregatedValue
     pr: AggregatedValue
   }
+  levels: CoreStatsLevels
 }
 
 export interface ShipAggregate {
@@ -66,10 +74,13 @@ export interface ShipAggregate {
   draws: number
   damage: number
   frags: number
+  expTotal: number
   winRate: AggregatedValue
   avgDamage: AggregatedValue
   avgFrags: AggregatedValue
+  avgExp: AggregatedValue
   pr: AggregatedValue
+  levels: CoreStatsLevels
 }
 
 export interface DailyPoint {
@@ -82,7 +93,9 @@ export interface DailyPoint {
   winRate: number | null
   avgDamage: number | null
   avgFrags: number | null
+  avgExp: number | null
   pr: AggregatedValue
+  levels: CoreStatsLevels
 }
 
 export interface DailyOptions {
@@ -103,6 +116,8 @@ interface PlayerTotals {
   draws: number
   damage: number
   frags: number
+  expTotal: number
+  expBattles: number
   matches: number
   ships: Map<string, ShipBattleStats>
 }
@@ -115,6 +130,8 @@ interface ShipTotals {
   draws: number
   damage: number
   frags: number
+  expTotal: number
+  expBattles: number
   players: Set<number>
 }
 
@@ -206,6 +223,8 @@ function scan(records: readonly MatchRecord[], options: AggregateOptions, teamId
       const accountId = participant.accountId
       const damage = participant.result.damage ?? 0
       const frags = participant.result.frags ?? 0
+      const rawExp = participant.result.rawExp
+      const exp = rawExp !== null && Number.isFinite(rawExp) ? rawExp : null
       const win = statistical === 'win'
 
       let player = players.get(accountId)
@@ -219,6 +238,8 @@ function scan(records: readonly MatchRecord[], options: AggregateOptions, teamId
           draws: 0,
           damage: 0,
           frags: 0,
+          expTotal: 0,
+          expBattles: 0,
           matches: 0,
           ships: new Map(),
         }
@@ -232,6 +253,10 @@ function scan(records: readonly MatchRecord[], options: AggregateOptions, teamId
       else if (outcome === 'draw') player.draws += 1
       player.damage += damage
       player.frags += frags
+      if (exp !== null) {
+        player.expTotal += exp
+        player.expBattles += 1
+      }
 
       if (participant.shipId !== null) {
         addShip(player.ships, participant.shipId, damage, frags, win)
@@ -246,6 +271,8 @@ function scan(records: readonly MatchRecord[], options: AggregateOptions, teamId
             draws: outcome === 'draw' ? 1 : 0,
             damage,
             frags,
+            expTotal: exp ?? 0,
+            expBattles: exp === null ? 0 : 1,
             players: new Set([accountId]),
           })
         } else {
@@ -255,6 +282,10 @@ function scan(records: readonly MatchRecord[], options: AggregateOptions, teamId
           else ship.draws += 1
           ship.damage += damage
           ship.frags += frags
+          if (exp !== null) {
+            ship.expTotal += exp
+            ship.expBattles += 1
+          }
           ship.players.add(accountId)
         }
       }
@@ -283,13 +314,56 @@ function weightedMean(
   return weight === 0 ? null : total / weight
 }
 
+function playerRating(
+  player: PlayerTotals,
+  options: AggregateOptions,
+  sample: SampleDescriptor,
+): RatedValue | null {
+  if (options.expected === undefined || player.ships.size === 0) return null
+  return accountPrPooled([...player.ships.values()], options.expected, sample)
+}
+
 function playerPr(
   player: PlayerTotals,
   options: AggregateOptions,
   sample: SampleDescriptor,
 ): number | null {
-  if (options.expected === undefined || player.ships.size === 0) return null
-  return accountPrPooled([...player.ships.values()], options.expected, sample)?.value ?? null
+  return playerRating(player, options, sample)?.value ?? null
+}
+
+function baselineOf(rating: RatedValue | null, ships: number): LevelBaseline | null {
+  return rating?.components === undefined
+    ? null
+    : baselineFromComponents(rating.components, {
+        ships,
+        exact: rating.exact,
+        baselineVersion: rating.baselineVersion,
+      })
+}
+
+function playerLevels(
+  player: PlayerTotals,
+  rating: RatedValue | null,
+  coverage: Coverage,
+): CoreStatsLevels {
+  return evaluateCoreStats({
+    winRate: ratioOf(player.wins * 100, player.battles),
+    avgDamage: ratioOf(player.damage, player.battles),
+    avgFrags: ratioOf(player.frags, player.battles),
+    expTotal: player.expTotal,
+    expBattles: player.expBattles,
+    battles: player.battles,
+    pr: rating?.value ?? null,
+    baseline: baselineOf(rating, player.ships.size),
+    sample: {
+      battles: player.battles,
+      ships: player.ships.size,
+      exact: rating?.exact ?? false,
+      aggregation: rating?.exact === false ? 'estimated' : 'pooled',
+      baselineVersion: rating?.baselineVersion ?? null,
+      coverage,
+    },
+  })
 }
 
 function playerCoverage(player: PlayerTotals): Coverage {
@@ -308,6 +382,7 @@ function playerValues(
   sample: SampleDescriptor,
 ): PlayerAggregate {
   const coverage = playerCoverage(player)
+  const rating = playerRating(player, options, sample)
   return {
     accountId: player.accountId,
     name: player.name,
@@ -317,6 +392,7 @@ function playerValues(
     draws: player.draws,
     damage: player.damage,
     frags: player.frags,
+    expTotal: player.expTotal,
     winRate: {
       value: ratioOf(player.wins * 100, player.battles),
       sample,
@@ -332,12 +408,109 @@ function playerValues(
       sample,
       coverage,
     },
-    pr: {
-      value: playerPr(player, options, sample),
+    avgExp: {
+      value: ratioOf(player.expTotal, player.expBattles),
       sample,
       coverage,
     },
+    pr: {
+      value: rating?.value ?? null,
+      sample,
+      coverage,
+    },
+    levels: playerLevels(player, rating, coverage),
   }
+}
+
+function teamLevelBaseline(
+  players: readonly PlayerTotals[],
+  options: AggregateOptions,
+  sample: SampleDescriptor,
+): LevelBaseline | null {
+  if (options.expected === undefined) return null
+
+  if (options.weighting === 'battles') {
+    const ships = players.flatMap((player) => [...player.ships.values()])
+    if (ships.length === 0) return null
+    return baselineOf(accountPrPooled(ships, options.expected, sample), ships.length)
+  }
+
+  let winRate = 0
+  let damage = 0
+  let frags = 0
+  let battles = 0
+  let ships = 0
+  let count = 0
+  let baselineVersion: string | null = null
+
+  for (const player of players) {
+    const rating = playerRating(player, options, sample)
+    const components = rating?.components
+    if (components === undefined || components.battles <= 0) continue
+
+    winRate += (components.expected.wins / components.battles) * 100
+    damage += components.expected.damage / components.battles
+    frags += components.expected.frags / components.battles
+    battles += components.battles
+    ships += player.ships.size
+    count += 1
+    baselineVersion ??= rating?.baselineVersion ?? null
+  }
+
+  if (count === 0) return null
+  return {
+    winRate: winRate / count,
+    damage: damage / count,
+    frags: frags / count,
+    battles,
+    ships,
+    exact: true,
+    baselineVersion,
+  }
+}
+
+function teamLevels(
+  players: readonly PlayerTotals[],
+  options: AggregateOptions,
+  sample: SampleDescriptor,
+  coverage: Coverage,
+  winRate: number | null,
+  avgDamage: number | null,
+  avgFrags: number | null,
+  avgExp: number | null,
+  pr: number | null,
+): CoreStatsLevels {
+  let battles = 0
+  let expTotal = 0
+  let expBattles = 0
+  let ships = 0
+  for (const player of players) {
+    battles += player.battles
+    expTotal += player.expTotal
+    expBattles += player.expBattles
+    ships += player.ships.size
+  }
+
+  const baseline = teamLevelBaseline(players, options, sample)
+  const levelExpTotal = avgExp === null ? expTotal : avgExp * expBattles
+  return evaluateCoreStats({
+    winRate,
+    avgDamage,
+    avgFrags,
+    expTotal: levelExpTotal,
+    expBattles,
+    battles,
+    pr,
+    baseline,
+    sample: {
+      battles,
+      ships,
+      exact: baseline?.exact ?? false,
+      aggregation: options.weighting === 'equal' ? 'equal-weight' : 'pooled',
+      baselineVersion: baseline?.baselineVersion ?? null,
+      coverage,
+    },
+  })
 }
 
 /** Per-player aggregates over the selected records. Ordered by battles, then account id. */
@@ -380,6 +553,12 @@ export function aggregateTeam(
       .map((player) => ({ value: player.frags / player.battles, weight: player.battles })),
     options.weighting,
   )
+  const avgExp = weightedMean(
+    players
+      .filter((player) => player.expBattles > 0)
+      .map((player) => ({ value: player.expTotal / player.expBattles, weight: player.expBattles })),
+    options.weighting,
+  )
 
   let pr: number | null = null
   if (options.expected !== undefined) {
@@ -409,8 +588,10 @@ export function aggregateTeam(
       winRate: { value: winRate, sample, coverage },
       avgDamage: { value: avgDamage, sample, coverage },
       avgFrags: { value: avgFrags, sample, coverage },
+      avgExp: { value: avgExp, sample, coverage },
       pr: { value: pr, sample, coverage },
     },
+    levels: teamLevels(players, options, sample, coverage, winRate, avgDamage, avgFrags, avgExp, pr),
   }
 }
 
@@ -432,9 +613,14 @@ export function aggregateShips(
       frags: ship.frags,
       wins: ship.wins,
     }
-    const pr = options.expected === undefined
+    const rating = options.expected === undefined
       ? null
-      : accountPrPooled([stats], options.expected, sample)?.value ?? null
+      : accountPrPooled([stats], options.expected, sample)
+    const baseline = baselineOf(rating, 1)
+    const winRate = ratioOf(ship.wins * 100, ship.battles)
+    const avgDamage = ratioOf(ship.damage, ship.battles)
+    const avgFrags = ratioOf(ship.frags, ship.battles)
+    const avgExp = ratioOf(ship.expTotal, ship.expBattles)
 
     rows.push({
       shipId: ship.shipId,
@@ -444,10 +630,30 @@ export function aggregateShips(
       draws: ship.draws,
       damage: ship.damage,
       frags: ship.frags,
-      winRate: { value: ratioOf(ship.wins * 100, ship.battles), sample, coverage },
-      avgDamage: { value: ratioOf(ship.damage, ship.battles), sample, coverage },
-      avgFrags: { value: ratioOf(ship.frags, ship.battles), sample, coverage },
-      pr: { value: pr, sample, coverage },
+      expTotal: ship.expTotal,
+      winRate: { value: winRate, sample, coverage },
+      avgDamage: { value: avgDamage, sample, coverage },
+      avgFrags: { value: avgFrags, sample, coverage },
+      avgExp: { value: avgExp, sample, coverage },
+      pr: { value: rating?.value ?? null, sample, coverage },
+      levels: evaluateCoreStats({
+        winRate,
+        avgDamage,
+        avgFrags,
+        expTotal: ship.expTotal,
+        expBattles: ship.expBattles,
+        battles: ship.battles,
+        pr: rating?.value ?? null,
+        baseline,
+        sample: {
+          battles: ship.battles,
+          ships: 1,
+          exact: rating?.exact ?? false,
+          aggregation: rating?.exact === false ? 'estimated' : 'pooled',
+          baselineVersion: rating?.baselineVersion ?? null,
+          coverage,
+        },
+      }),
     })
   }
 
@@ -462,6 +668,8 @@ interface DayTotals {
   draws: number
   damage: number
   frags: number
+  expTotal: number
+  expBattles: number
   ships: Map<string, ShipBattleStats>
 }
 
@@ -495,6 +703,8 @@ export function dailySeries(
         draws: 0,
         damage: 0,
         frags: 0,
+        expTotal: 0,
+        expBattles: 0,
         ships: new Map(),
       }
       days.set(day, totals)
@@ -507,8 +717,14 @@ export function dailySeries(
 
     const damage = self.result.damage ?? 0
     const frags = self.result.frags ?? 0
+    const rawExp = self.result.rawExp
+    const exp = rawExp !== null && Number.isFinite(rawExp) ? rawExp : null
     totals.damage += damage
     totals.frags += frags
+    if (exp !== null) {
+      totals.expTotal += exp
+      totals.expBattles += 1
+    }
 
     if (self.shipId !== null) {
       addShip(totals.ships, self.shipId, damage, frags, outcome === 'win')
@@ -526,9 +742,14 @@ export function dailySeries(
       failed: 0,
     }
     const sample: SampleDescriptor = { kind: 'ingested', matches: battles }
-    const pr = options.expected === undefined || totals.ships.size === 0
+    const rating = options.expected === undefined || totals.ships.size === 0
       ? null
-      : accountPrPooled([...totals.ships.values()], options.expected, sample)?.value ?? null
+      : accountPrPooled([...totals.ships.values()], options.expected, sample)
+    const winRate = battles === 0 ? null : (totals.wins / battles) * 100
+    const avgDamage = battles === 0 ? null : totals.damage / battles
+    const avgFrags = battles === 0 ? null : totals.frags / battles
+    const avgExp = ratioOf(totals.expTotal, totals.expBattles)
+    const baseline = baselineOf(rating, totals.ships.size)
 
     points.push({
       day: totals.day,
@@ -537,10 +758,29 @@ export function dailySeries(
       wins: totals.wins,
       losses: totals.losses,
       draws: totals.draws,
-      winRate: battles === 0 ? null : (totals.wins / battles) * 100,
-      avgDamage: battles === 0 ? null : totals.damage / battles,
-      avgFrags: battles === 0 ? null : totals.frags / battles,
-      pr: { value: pr, sample, coverage },
+      winRate,
+      avgDamage,
+      avgFrags,
+      avgExp,
+      pr: { value: rating?.value ?? null, sample, coverage },
+      levels: evaluateCoreStats({
+        winRate,
+        avgDamage,
+        avgFrags,
+        expTotal: totals.expTotal,
+        expBattles: totals.expBattles,
+        battles,
+        pr: rating?.value ?? null,
+        baseline,
+        sample: {
+          battles,
+          ships: totals.ships.size,
+          exact: rating?.exact ?? false,
+          aggregation: rating?.exact === false ? 'estimated' : 'pooled',
+          baselineVersion: rating?.baselineVersion ?? null,
+          coverage,
+        },
+      }),
     })
   }
 

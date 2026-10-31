@@ -2,7 +2,7 @@
 
 《战舰世界》对局数据的纯计算内核。无文件 IO、无网络、无运行时状态：输入是已经解析好的赛前名单或赛后回放结果，输出是可直接持久化或展示的 `MatchRecord`、评级与统计。
 
-已提供：`./match`、评级、时间、`./recent`、`./aggregate`、`./metrics`、`./strength`（含概览归纳）。
+已提供：`./match`、评级、五项统计等级、时间、`./recent`、`./aggregate`、`./metrics`、`./strength`（含概览归纳）。
 
 ## 安装
 
@@ -56,7 +56,43 @@ levelOf('pr', 1200) // { levelKey: 'average', floor: 1100, ... }
 
 `exact: false` 是产品承诺：调用方必须把它显示为 `PR*`，不能与精确 PR 不加区分地混排。偏差方向通过 `bias` 输出；没有 `shipMix` 时是 `unknown`，不猜。
 
-PR 公式、预期值和分档阈值全部复用 `wows-number-api-sdk`，本包不复制常量。
+PR 公式、预期值和分档阈值全部复用 `wows-number-api-sdk`，本包不复制常量。`RatedValue.components` 带有 PR 的 ratio / normalized 分量。
+
+### 五项统计等级
+
+`evaluateCoreStats` 统一计算胜率、场均伤害、场均击杀、PR、场均经验五项等级：
+
+```ts
+import { evaluateCoreStats, shipLevels, accountLevels } from 'wows-compute'
+
+const levels = shipLevels(shipTotals, expected)
+levels.damage?.band.key       // 'average'
+levels.damage?.normalized     // nDmg
+levels.damage?.ratioBand      // 同一档位在 ratio 空间的边界
+levels.damage?.rawBand        // 同一档位换算回场均伤害后的边界
+levels.damage?.band.deltaToNext // 到下一档的差值
+
+const account = accountLevels(ships, expected, sample) // exact pooled
+```
+
+口径：
+
+- 全局使用 `value >= floor`；`PR = 750`、`XP = 700` 都属于 `below-average`。
+- 胜率、伤害、击杀使用 `nWins` / `nDmg` / `nFrags` 分档；PR、XP 使用绝对阈值。
+- 归一化常量复用 `wows-number-api-sdk` 的 `normalizePrRatio`。
+- XP 由调用方提供 `expTotal + battles`（可选 `expBattles`）；aggregate/recent 内部累计 `rawExp`，只有 `rawExp` 非空才计入 `expBattles`。
+- 聚合默认 `displayed`：等级描述当前显示值，避免数字和颜色不一致。
+- `aggregate*` / `recentMatches` 的输出直接带 `levels`；`strength` 本期不挂等级。
+
+五组阈值：
+
+| 指标 | 分档依据 | 下限 |
+| --- | --- | --- |
+| PR | 绝对 PR | 750 / 1100 / 1350 / 1550 / 1750 / 2100 / 2450 |
+| XP | 绝对场均经验 | 700 / 900 / 1100 / 1400 / 1700 / 2100 / 2400 |
+| 胜率 | `nWins` | 0.8 / 0.9 / 1.1 / 1.2 / 1.3 / 1.4 / 1.5 |
+| 伤害 | `nDmg` | 0.7 / 0.9 / 1.1 / 1.3 / 1.5 / 1.7 / 1.9 |
+| 击杀 | `nFrags` | 0.6 / 1.0 / 1.4 / 1.8 / 2.2 / 2.6 / 3.0 |
 
 ### 近期与聚合
 
@@ -76,6 +112,7 @@ const team = aggregateTeam(records, teamId, {
 - 平局计入 `battles`，胜率为 `wins / battles`；`losses` 只计实际失败。
 - 记录总览用 `weighting: 'battles'` + `prAggregation: 'pooled'`；监控页用 `equal` + `mean`。
 - 分母为 0 返回 `null`；`coverage` 的 `resolved + hidden + bot + failed` 恒等于 `total`。
+- `PlayerAggregate` / `TeamAggregate` / `ShipAggregate` / `RecentStats` / `DailyPoint` 带 `levels`；前四者还提供 `avgExp`，`RecentStats` 额外给出 `expTotal` 与 `expBattles`。
 
 ### 指标字典
 

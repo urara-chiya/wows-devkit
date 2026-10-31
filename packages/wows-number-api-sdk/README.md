@@ -162,9 +162,24 @@ PR = 700 × n_dmg + 300 × n_frags + 150 × n_wins
 ```ts
 import { calculatePR, calculateBattlePR } from 'wows-number-api-sdk'
 
-calculatePR(shipStats, expected)
+const result = calculatePR(shipStats, expected)
 calculateBattlePR({ shipId, damage, frags, win }, expected) // 单场
 ```
+
+结果同时带有 PR 公式的中间分量：
+
+```ts
+result?.components
+// {
+//   battles,
+//   actual:   { damage, frags, wins },
+//   expected: { damage, frags, wins },
+//   ratio:    { damage, frags, wins },
+//   normalized: { damage, frags, wins },
+// }
+```
+
+`normalizePrRatio(metric, ratio)` 公开同一套归一化常量，供上层计算分项等级时复用，不要在调用方复制 `0.4 / 0.1 / 0.7`。
 
 ### 分段
 
@@ -184,6 +199,8 @@ prCategory(1600) // 'very-good'
 | `great` | 1750 | Great |
 | `unicum` | 2100 | Unicum |
 | `super-unicum` | 2450 | Super Unicum |
+
+PR 和胜率都使用 `value >= floor`：`PR = 750` 属于 `below-average`，不是 `bad`。
 
 胜率分段按百分数：`47 / 50 / 52 / 54 / 56 / 60 / 65`，使用 `winRateCategory(rate)`。
 

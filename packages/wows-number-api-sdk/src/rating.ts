@@ -3,9 +3,25 @@ import type {
   ExpectedValuesDocument,
   PersonalRatingCategory,
   PersonalRatingResult,
+  PrComponents,
   ShipBattleStats,
   SingleBattleInput,
 } from './types.js'
+
+export type PrComponentMetric = 'damage' | 'frags' | 'wins'
+
+/** Normalization constants used by the wows-numbers Personal Rating formula. */
+export const PR_NORMALIZATION = {
+  damage: { threshold: 0.4, denominator: 0.6 },
+  frags: { threshold: 0.1, denominator: 0.9 },
+  wins: { threshold: 0.7, denominator: 0.3 },
+} as const satisfies Record<PrComponentMetric, { threshold: number; denominator: number }>
+
+/** `max(0, (ratio - threshold) / denominator)` for one PR component. */
+export function normalizePrRatio(metric: PrComponentMetric, ratio: number): number {
+  const { threshold, denominator } = PR_NORMALIZATION[metric]
+  return Math.max(0, (ratio - threshold) / denominator)
+}
 
 export interface RatingBand {
   category: PersonalRatingCategory
@@ -102,18 +118,29 @@ export function calculatePR(
   }
   if (![actualDamage, actualFrags, actualWins].every(Number.isFinite)) return null
 
-  const rDamage = actualDamage / expectedDamage
-  const rFrags = actualFrags / expectedFrags
-  const rWins = actualWins / expectedWins
+  const ratio = {
+    damage: actualDamage / expectedDamage,
+    frags: actualFrags / expectedFrags,
+    wins: actualWins / expectedWins,
+  }
+  const normalized = {
+    damage: normalizePrRatio('damage', ratio.damage),
+    frags: normalizePrRatio('frags', ratio.frags),
+    wins: normalizePrRatio('wins', ratio.wins),
+  }
 
-  const nDamage = Math.max(0, (rDamage - 0.4) / 0.6)
-  const nFrags = Math.max(0, (rFrags - 0.1) / 0.9)
-  const nWins = Math.max(0, (rWins - 0.7) / 0.3)
-
-  const pr = 700 * nDamage + 300 * nFrags + 150 * nWins
+  const pr = 700 * normalized.damage + 300 * normalized.frags + 150 * normalized.wins
   if (!Number.isFinite(pr)) return null
 
-  return { pr, category: prCategory(pr) }
+  const components: PrComponents = {
+    battles: validBattles,
+    actual: { damage: actualDamage, frags: actualFrags, wins: actualWins },
+    expected: { damage: expectedDamage, frags: expectedFrags, wins: expectedWins },
+    ratio,
+    normalized,
+  }
+
+  return { pr, category: prCategory(pr), components }
 }
 
 /** Rates a single battle: one battle, one win or loss. */

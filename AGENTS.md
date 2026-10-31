@@ -9,7 +9,7 @@ Wows DevKit 是《战舰世界》数据服务的 TypeScript SDK 集合，使用 
 | `packages/wows-api-sdk` | `wows-api-sdk` | 官方 API、Vortex、公会服务客户端 |
 | `packages/wows-number-api-sdk` | `wows-number-api-sdk` | wows-numbers 期望值、PR 计算、配色与玩家页链接 |
 | `packages/wows-replay-parser` | `wows-replay-parser` | Replay 元数据与对局结果解析 |
-| `packages/wows-compute` | `wows-compute` | 对局记录、评级与统计的纯计算内核 |
+| `packages/wows-compute` | `wows-compute` | 对局记录、评级、五项统计等级与统计的纯计算内核 |
 
 四个包都是 ESM-only、Node.js 22.18+。`wows-compute` 运行时只依赖 `wows-number-api-sdk`；另外三个包中，只有 `wows-replay-parser` 使用 `egoroof-blowfish`，其余运行时零依赖。构建产物输出到各自的 `dist/`。
 
@@ -38,8 +38,8 @@ packages/
     tests/
   wows-compute/
     src/match/            # ArenaRoster、MatchRecord、合并、关联、组队
-    src/rating/           # 三种 PR 与 RatedValue
-    src/levels/           # levelOf 与阈值
+    src/rating/           # 三种 PR、RatedValue 与 PR components
+    src/levels/           # 五项统计等级、band、baseline 与 evaluateCoreStats
     src/time/             # 游戏日、周界、时区解析
     src/recent/           # 已入库对局的窗口统计
     src/aggregate/        # 加权聚合、覆盖率、按日序列
@@ -92,7 +92,7 @@ TypeScript 配置继承 `tsconfig.base.json`，每个包的 `include` 为 `["src
 - 使用 Vitest，测试文件位于 `packages/*/tests/*.test.ts`，按被测模块命名（如 `rating.test.ts`、`vortex.test.ts`）。
 - 测试不得访问真实网络：通过 `fetch` 选项注入 `vi.fn()`，自行构造 `Response`。
 - 覆盖 URL 与参数拼接、错误映射、边界值和空值语义，而不只是正常路径。
-- 当前基线：`wows-api-sdk` 60 个测试，`wows-number-api-sdk` 30 个测试，`wows-replay-parser` 34 个测试，`wows-compute` 85 个测试，共 209 个。
+- 当前基线：`wows-api-sdk` 60 个测试，`wows-number-api-sdk` 33 个测试，`wows-replay-parser` 34 个测试，`wows-compute` 97 个测试，共 224 个。
 
 ## 代码风格
 

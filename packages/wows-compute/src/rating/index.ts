@@ -6,6 +6,7 @@ import {
 import type {
   ExpectedValuesDocument,
   PersonalRatingResult,
+  PrComponents,
   ShipBattleStats,
   SingleBattleInput,
 } from 'wows-number-api-sdk'
@@ -37,6 +38,8 @@ export interface RatedValue {
   baselineVersion: string
   /** Only present when `exact === false`. */
   bias?: EstimateBias
+  /** Raw PR formula components, when available. */
+  components?: PrComponents
 }
 
 export interface AccountTotals {
@@ -142,7 +145,8 @@ export function shipPr(
   expected: ExpectedValuesDocument,
   sample: SampleDescriptor = { kind: 'lifetime', matches: stats.battles },
 ): RatedValue | null {
-  const value = resultValue(calculatePR([stats], expected))
+  const result = calculatePR([stats], expected)
+  const value = resultValue(result)
   if (value === null) return null
 
   return {
@@ -151,6 +155,7 @@ export function shipPr(
     exact: true,
     sample,
     baselineVersion: baselineOf(expected),
+    components: result!.components,
   }
 }
 
@@ -160,7 +165,8 @@ export function battlePr(
   expected: ExpectedValuesDocument,
   sample: SampleDescriptor = { kind: 'match', matches: 1 },
 ): RatedValue | null {
-  const value = resultValue(calculateBattlePR(battle, expected))
+  const result = calculateBattlePR(battle, expected)
+  const value = resultValue(result)
   if (value === null) return null
 
   return {
@@ -169,6 +175,7 @@ export function battlePr(
     exact: true,
     sample,
     baselineVersion: baselineOf(expected),
+    components: result!.components,
   }
 }
 
@@ -206,7 +213,8 @@ export function accountPrEstimated(
     frags: account.frags,
     wins: account.wins,
   }
-  const value = resultValue(calculatePR([synthetic], syntheticExpected))
+  const result = calculatePR([synthetic], syntheticExpected)
+  const value = resultValue(result)
   if (value === null) return null
 
   return {
@@ -216,6 +224,7 @@ export function accountPrEstimated(
     sample: { kind: 'lifetime', matches: account.battles },
     baselineVersion: baselineOf(expected),
     bias: estimateBias(expected, averages, options.shipMix),
+    components: result!.components,
   }
 }
 
@@ -230,7 +239,8 @@ export function accountPrPooled(
   expected: ExpectedValuesDocument,
   sample: SampleDescriptor,
 ): RatedValue | null {
-  const value = resultValue(calculatePR(ships, expected))
+  const result = calculatePR(ships, expected)
+  const value = resultValue(result)
   if (value === null) return null
 
   return {
@@ -239,5 +249,6 @@ export function accountPrPooled(
     exact: true,
     sample,
     baselineVersion: baselineOf(expected),
+    components: result!.components,
   }
 }

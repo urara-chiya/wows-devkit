@@ -80,6 +80,33 @@ describe('aggregatePlayers', () => {
     expect(rows[0]?.avgDamage.value).toBe(45000)
   })
 
+  it('aggregates rawExp and attaches levels', () => {
+    const rows = aggregatePlayers([
+      makeRecord({
+        arenaId: 'exp',
+        battleTime: 5000,
+        winnerTeamId: 0,
+        participants: [
+          {
+            accountId: 1,
+            name: 'A',
+            teamId: 0,
+            shipId: 1,
+            damage: 50_000,
+            frags: 1,
+            rawExp: 1000,
+          },
+        ],
+      }),
+    ], options)
+
+    expect(rows[0]?.expTotal).toBe(1000)
+    expect(rows[0]?.avgExp.value).toBe(1000)
+    expect(rows[0]?.levels.xp?.value).toBe(1000)
+    expect(rows[0]?.levels.damage?.band.key).toBe('average')
+    expect(rows[0]?.levels.frags?.band.key).toBe('average')
+  })
+
   it('computes a pooled PR per player', () => {
     const rows = aggregatePlayers(records(), options)
     const stats: ShipBattleStats = {
@@ -118,6 +145,34 @@ describe('aggregateTeam', () => {
     expect(team.players).toBe(2)
     expect(team.coverage.resolved + team.coverage.hidden + team.coverage.bot + team.coverage.failed)
       .toBe(team.coverage.total)
+    expect(team.levels.damage?.band.key).toBeDefined()
+  })
+
+  it('keeps equal-weight XP level aligned with the displayed average', () => {
+    const list = [
+      makeRecord({
+        arenaId: 'e1',
+        battleTime: 1,
+        winnerTeamId: 0,
+        participants: [
+          { accountId: 1, teamId: 0, shipId: 1, rawExp: 1000 },
+          { accountId: 2, teamId: 0, shipId: 1, rawExp: 400 },
+        ],
+      }),
+      makeRecord({
+        arenaId: 'e2',
+        battleTime: 2,
+        winnerTeamId: 0,
+        participants: [
+          { accountId: 1, teamId: 0, shipId: 1, rawExp: 1000 },
+        ],
+      }),
+    ]
+    const team = aggregateTeam(list, 0, { ...options, weighting: 'equal' })
+
+    // A: 1000 XP over 2 battles, B: 400 XP over 1 battle -> equal-weight mean 700.
+    expect(team.values.avgExp.value).toBe(700)
+    expect(team.levels.xp?.value).toBe(700)
   })
 
   it('distinguishes mean and pooled PR', () => {
@@ -144,6 +199,7 @@ describe('aggregateShips', () => {
     expect([...byShip.keys()]).toEqual([1, 2])
     expect(byShip.get(1)).toMatchObject({ battles: 6, wins: 3, losses: 3, draws: 0 })
     expect(byShip.get(2)).toMatchObject({ battles: 5, wins: 1, losses: 1, draws: 3 })
+    expect(byShip.get(1)?.levels.damage?.band.key).toBeDefined()
   })
 
   it('keeps coverage parts equal to the total', () => {
@@ -190,6 +246,7 @@ describe('dailySeries', () => {
     expect(points[0]).toMatchObject({ matches: 1, wins: 1, winRate: 100, avgDamage: 66000 })
     expect(points[1]).toMatchObject({ matches: 1, wins: 0, losses: 1, winRate: 0 })
     expect(points[0]?.pr.value).not.toBeNull()
+    expect(points[0]?.levels.damage?.band.key).toBeDefined()
   })
 
   it('applies match group filters', () => {

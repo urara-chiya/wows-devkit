@@ -1,6 +1,9 @@
 import type { ExpectedValuesDocument, ShipBattleStats } from 'wows-number-api-sdk'
 import { accountPrPooled } from '../rating/index.js'
 import type { RatedValue, SampleDescriptor } from '../rating/index.js'
+import { baselineFromComponents } from '../levels/baseline.js'
+import { evaluateCoreStats } from '../levels/stats.js'
+import type { CoreStatsLevels } from '../levels/types.js'
 import { outcomeOf, statOutcome } from '../match/index.js'
 import type { MatchGroup, MatchParticipant, MatchRecord } from '../match/index.js'
 
@@ -28,9 +31,13 @@ export interface RecentStats {
   winRate: number | null
   damage: number
   frags: number
+  expTotal: number
+  expBattles: number
   avgDamage: number | null
   avgFrags: number | null
+  avgExp: number | null
   pr: RatedValue | null
+  levels: CoreStatsLevels
 }
 
 export interface RecentResult {
@@ -64,6 +71,10 @@ function compareNewestFirst(a: MatchRecord, b: MatchRecord): number {
   return a.arenaId.localeCompare(b.arenaId)
 }
 
+function emptyLevels(): CoreStatsLevels {
+  return { winRate: null, damage: null, frags: null, pr: null, xp: null }
+}
+
 function emptyStats(): RecentStats {
   return {
     battles: 0,
@@ -73,9 +84,13 @@ function emptyStats(): RecentStats {
     winRate: null,
     damage: 0,
     frags: 0,
+    expTotal: 0,
+    expBattles: 0,
     avgDamage: null,
     avgFrags: null,
+    avgExp: null,
     pr: null,
+    levels: emptyLevels(),
   }
 }
 
@@ -112,6 +127,8 @@ export function recentMatches(
   const ships = new Map<string, ShipBattleStats>()
   let damage = 0
   let frags = 0
+  let expTotal = 0
+  let expBattles = 0
   let wins = 0
   let losses = 0
   let draws = 0
@@ -127,8 +144,14 @@ export function recentMatches(
 
     const resultDamage = participant.result.damage ?? 0
     const resultFrags = participant.result.frags ?? 0
+    const rawExp = participant.result.rawExp
+    const exp = rawExp !== null && Number.isFinite(rawExp) ? rawExp : null
     damage += resultDamage
     frags += resultFrags
+    if (exp !== null) {
+      expTotal += exp
+      expBattles += 1
+    }
 
     if (participant.shipId !== null) {
       const key = String(participant.shipId)
@@ -158,8 +181,11 @@ export function recentMatches(
   stats.winRate = battles === 0 ? null : (wins / battles) * 100
   stats.damage = damage
   stats.frags = frags
+  stats.expTotal = expTotal
+  stats.expBattles = expBattles
   stats.avgDamage = battles === 0 ? null : damage / battles
   stats.avgFrags = battles === 0 ? null : frags / battles
+  stats.avgExp = expBattles === 0 ? null : expTotal / expBattles
 
   const sample: SampleDescriptor = {
     kind: 'ingested',
@@ -172,6 +198,32 @@ export function recentMatches(
   if (expected !== undefined && ships.size > 0) {
     stats.pr = accountPrPooled([...ships.values()], expected, sample)
   }
+
+  const baseline = stats.pr?.components === undefined
+    ? null
+    : baselineFromComponents(stats.pr.components, {
+        ships: ships.size,
+        exact: stats.pr.exact,
+        baselineVersion: stats.pr.baselineVersion,
+      })
+
+  stats.levels = evaluateCoreStats({
+    winRate: stats.winRate,
+    avgDamage: stats.avgDamage,
+    avgFrags: stats.avgFrags,
+    expTotal,
+    expBattles,
+    battles,
+    pr: stats.pr?.value ?? null,
+    baseline,
+    sample: {
+      battles,
+      ships: ships.size,
+      exact: stats.pr?.exact ?? false,
+      aggregation: stats.pr?.exact === false ? 'estimated' : 'pooled',
+      baselineVersion: stats.pr?.baselineVersion ?? null,
+    },
+  })
 
   return { matches, sample, stats }
 }

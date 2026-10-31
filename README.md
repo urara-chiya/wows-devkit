@@ -9,7 +9,7 @@
 | [`wows-api-sdk`](packages/wows-api-sdk) | 官方 API、Vortex、公会服务客户端 |
 | [`wows-number-api-sdk`](packages/wows-number-api-sdk) | wows-numbers 期望值、PR 计算与玩家页链接 |
 | [`wows-replay-parser`](packages/wows-replay-parser) | Replay 元数据与对局结果解析 |
-| [`wows-compute`](packages/wows-compute) | 对局记录、评级与统计的纯计算内核 |
+| [`wows-compute`](packages/wows-compute) | 对局记录、评级、五项统计等级与统计的纯计算内核 |
 
 ## 环境要求
 

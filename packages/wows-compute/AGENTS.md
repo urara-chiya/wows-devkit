@@ -4,7 +4,7 @@
 
 ## 包职责
 
-纯计算内核：输入已解析的赛前名单或赛后回放结果，输出 `MatchRecord`、评级与统计。不做文件 IO、网络、存储、UI，也不依赖运行时状态。
+纯计算内核：输入已解析的赛前名单或赛后回放结果，输出 `MatchRecord`、评级、五项统计等级与统计。不做文件 IO、网络、存储、UI，也不依赖运行时状态。
 
 | 入口 | 源文件 | 内容 |
 | --- | --- | --- |
@@ -18,8 +18,8 @@
 ## 源码结构
 
 - `src/match/`：`types.ts` 数据模型，`index.ts` 转换与合并。
-- `src/rating/`：`shipPr`、`battlePr`、`accountPrEstimated`（PR*）、`accountPrPooled`。
-- `src/levels/`：`levelOf`，只给 key 与阈值。
+- `src/rating/`：`shipPr`、`battlePr`、`accountPrEstimated`（PR*）、`accountPrPooled`；`RatedValue.components` 带 PR 分量。
+- `src/levels/`：`evaluateCoreStats`、`shipLevels`、`accountLevels`、五项 band、baseline、前后差值与 `levelOf` 兼容入口。
 - `src/time/`：`parseBattleTime`、`gameDay`、`weekBoundary`、`inRange`。
 - `src/recent/`：已入库对局的窗口统计。
 - `src/aggregate/`：加权聚合、覆盖率、按日序列。
@@ -44,7 +44,11 @@
 - 自己：赛前 `relation === 0`；赛后按 `meta.playerName` 唯一匹配，`playerID` 常为 `0`，不可依赖。
 - `exact: false` 只用于 PR*；UI 必须标 `PR*`。
 - 分母为 0 返回 `null`，不返回 0。
-- 胜率一律是百分数（`wins / battles * 100`），与 `WIN_RATE_BANDS` 一致；平局计入 `battles`。
+- 胜率一律是百分数（`wins / battles * 100`）；平局计入 `battles`。
+- 五项等级统一使用 `value >= floor`：`PR = 750`、`XP = 700` 都属于 `below-average`。
+- 胜率、伤害、击杀等级使用 `nWins` / `nDmg` / `nFrags`；PR、XP 使用绝对阈值。归一化必须调用 `wows-number-api-sdk` 的 `normalizePrRatio`，不得复制常量。
+- XP 等级只接受 `expTotal + battles`（可选 `expBattles`；aggregate/recent 内部用 `rawExp`，只有非空值才计入 `expBattles`）；等级函数不关心字段来源。
+- 聚合等级默认 `displayed`：等级描述当前显示值。`aggregate*` / `recentMatches` 输出 `levels`；`strength` 本期不挂等级。
 - `coverage.resolved + hidden + bot + failed = total` 是硬不变量，所有聚合输出都要满足。
 - `aggregate` 的 coverage 单位是人次，overview（`summarizePlayers`）的 coverage 单位是席位；不要混用两者的分母语义。
 - 近期只统计已入库且 `result !== null` 的对局；`drawPolicy: 'exclude'` 会同时从 `matches` 和样本中移除平局。
@@ -56,6 +60,7 @@
 
 - `tests/match.test.ts`：胜负/平局、稳定键、fromReplay、组队、合并、赛前关联。
 - `tests/rating.test.ts`：与 SDK 公式逐值一致、PR* 偏差方向、分档边界。
+- `tests/levels.test.ts`：五项阈值边界、归一化、ratio/raw band、前后差值、PR*/XP。
 - `tests/time.test.ts`：时区解析、游戏日边界、周界。
 - `tests/recent.test.ts`：窗口、平局策略、日期边界、同场他人。
 - `tests/aggregate.test.ts`：权重差异、PR mean/pooled、覆盖率守恒、按日序列。

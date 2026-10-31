@@ -19,7 +19,7 @@ function records(): MatchRecord[] {
       battleTime: 1000,
       winnerTeamId: 0,
       participants: [
-        { accountId: 1, name: 'Self', teamId: 0, relation: 'self', shipId: 1, damage: 100000, frags: 2 },
+        { accountId: 1, name: 'Self', teamId: 0, relation: 'self', shipId: 1, damage: 100000, frags: 2, rawExp: 600 },
         { accountId: 3, name: 'Enemy', teamId: 1, shipId: 2, damage: 20000 },
       ],
     }),
@@ -28,7 +28,7 @@ function records(): MatchRecord[] {
       battleTime: 2000,
       winnerTeamId: 1,
       participants: [
-        { accountId: 1, name: 'Self', teamId: 0, relation: 'self', shipId: 1, damage: 50000, frags: 1 },
+        { accountId: 1, name: 'Self', teamId: 0, relation: 'self', shipId: 1, damage: 50000, frags: 1, rawExp: 700 },
         { accountId: 3, name: 'Enemy', teamId: 1, shipId: 2, damage: 80000, frags: 2 },
       ],
     }),
@@ -37,7 +37,7 @@ function records(): MatchRecord[] {
       battleTime: 3000,
       winnerTeamId: 0,
       participants: [
-        { accountId: 1, name: 'Self', teamId: 0, relation: 'self', shipId: 2, damage: 60000 },
+        { accountId: 1, name: 'Self', teamId: 0, relation: 'self', shipId: 2, damage: 60000, rawExp: 800 },
         { accountId: 3, name: 'Enemy', teamId: 1, shipId: 1, damage: 10000 },
       ],
     }),
@@ -46,7 +46,7 @@ function records(): MatchRecord[] {
       battleTime: 4000,
       winnerTeamId: -1,
       participants: [
-        { accountId: 1, name: 'Self', teamId: 0, relation: 'self', shipId: 1, damage: 10000 },
+        { accountId: 1, name: 'Self', teamId: 0, relation: 'self', shipId: 1, damage: 10000, rawExp: 900 },
         { accountId: 3, name: 'Enemy', teamId: 1, shipId: 1, damage: 10000 },
       ],
     }),
@@ -67,8 +67,13 @@ describe('recentMatches', () => {
       damage: 220000,
       frags: 3,
       avgDamage: 55000,
+      expTotal: 3000,
+      expBattles: 4,
+      avgExp: 750,
     })
     expect(result.stats.pr).toMatchObject({ basis: 'account', exact: true })
+    expect(result.stats.levels.xp?.band.key).toBe('below-average')
+    expect(result.stats.levels.damage?.band.key).toBe('average')
     expect(result.sample).toEqual({ kind: 'ingested', matches: 4 })
   })
 
