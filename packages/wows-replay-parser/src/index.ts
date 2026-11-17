@@ -1,6 +1,6 @@
 export { decryptReplayStream } from './blowfish.js'
 export { parseReplayMeta, readReplayContainer, REPLAY_MAGIC } from './container.js'
-export { LATEST_MAPPING } from './constants.js'
+export { getLatestMappingVersion, LATEST_MAPPING } from './constants.js'
 export { ReplayError } from './errors.js'
 export type { ReplayErrorCode } from './errors.js'
 export {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { LATEST_MAPPING } from '../src/constants.js'
+import { getLatestMappingVersion, LATEST_MAPPING } from '../src/constants.js'
 import { getSelfPlayer, parseBattleResultsPayload, resolveBattleResults } from '../src/results.js'
 import type { BattleResultsMapping, RawBattleResults } from '../src/types.js'
 import { createMeta } from './helpers/replay.js'
@@ -100,9 +100,12 @@ describe('battle results', () => {
     expect(getSelfPlayer(createMeta({ playerID: 0, playerName: 'Bob' }), results)?.name).toBe('Bob')
   })
 
-  test('ships the 15.9 mapping snapshot', () => {
-    expect(LATEST_MAPPING.version).toBe('15.9')
+  test('ships the 15.10 mapping snapshot', () => {
+    expect(getLatestMappingVersion()).toBe('15.10')
+    expect(LATEST_MAPPING.version).toBe('15.10')
     expect(LATEST_MAPPING.publicResultIndices.account_db_id).toBe(0)
+    expect(LATEST_MAPPING.publicResultIndices.damage).toBe(438)
+    expect(LATEST_MAPPING.publicResultIndices.RIBBON_MAIN_CALIBER).toBe(493)
     expect(LATEST_MAPPING.commonResults).toContain('winner_team_id')
   })
 })

@@ -80,6 +80,7 @@ console.log(meta.vehicles)
 | `resolveBattleResults(raw, mapping?)` | 位置数组 → 命名字段 |
 | `getSelfPlayer(meta, results)` | 按账号 ID 或昵称查找录制者 |
 | `LATEST_MAPPING` | 随包发布的最新版字段映射 |
+| `getLatestMappingVersion()` | 获取内置映射的游戏版本，如 `15.10` |
 
 ## 返回结构
 

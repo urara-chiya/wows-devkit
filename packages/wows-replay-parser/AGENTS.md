@@ -43,7 +43,7 @@
 - `constants/latest.json` 随源码存在，构建时内联到 `dist/`；`constants/<version>.json` 只保留在 GitHub。
 - 映射由 `src/extract/` 从本机 `scripts.zip` 静态提取生成，不依赖 `wows-sandbox`、`wows-constants` 或其他项目。
 - 提取流程：ZIP -> Python 2.7 marshal -> 4 段 `.pyc` 解密 -> 代码对象常量扫描。
-- `CLIENT_PUBLIC_RESULTS` 的核心段由 `PLAYER_INFO + VEH_COMMON_RESULTS + VEH_CLIENT_RESULTS` 基础段拼成；末尾 Ribbon 段由运行时枚举生成，提取器复用上一版 `latest.json` 的尾段，核心前缀不一致时告警并只输出核心段。
+- `CLIENT_PUBLIC_RESULTS` 的核心段由 `PLAYER_INFO + VEH_COMMON_RESULTS + VEH_CLIENT_RESULTS` 基础段拼成；末尾 Ribbon 段由运行时枚举生成，提取器复用上一版 `latest.json` 的尾段。核心前缀一致或旧核心是有序子序列时复用，否则告警并只输出核心段。
 - 升级游戏版本时运行 `dist/extract-cli.mjs --scripts-zip ...`，不要手工编辑映射表。
 - 自定义映射通过 `parseReplay` 的 `mapping` 选项传入。
 

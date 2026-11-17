@@ -103,10 +103,15 @@ export function extractConstants(archive: ZipArchive, options: ExtractConstantsO
 
     const core = [...playerInfo, ...vehCommon, ...vehClientBase]
     const previous = previousFieldNames(options.previousMapping)
-    const tail = previous.length > core.length ? previous.slice(core.length) : []
+    const ribbonIndex = previous.indexOf('RIBBON_MAIN_CALIBER')
+    const tail = ribbonIndex >= 0 ? previous.slice(ribbonIndex) : []
     const prefixMatches = core.every((name, index) => previous[index] === name)
+    const canReuseTail = canReusePreviousRibbonTail(core, previous)
 
-    if (tail.length > 0 && prefixMatches) {
+    if (tail.length > 0 && canReuseTail) {
+      if (!prefixMatches) {
+        warnings.push('previous mapping core contains ordered field insertions; ribbon tail reused at the new core boundary')
+      }
       clientPublicResults = [...core, ...tail]
       ribbonTailSource = 'previous'
     } else if (tail.length > 0) {
@@ -202,6 +207,19 @@ function toStringArray(value: PyValue): string[] | null {
     result.push(text)
   }
   return result
+}
+
+export function canReusePreviousRibbonTail(core: readonly string[], previous: readonly string[]): boolean {
+  const ribbonIndex = previous.indexOf('RIBBON_MAIN_CALIBER')
+  if (ribbonIndex < 0) return false
+
+  let coreIndex = 0
+  for (const name of previous.slice(0, ribbonIndex)) {
+    coreIndex = core.indexOf(name, coreIndex)
+    if (coreIndex < 0) return false
+    coreIndex += 1
+  }
+  return true
 }
 
 function previousFieldNames(mapping: BattleResultsMapping | undefined): string[] {
